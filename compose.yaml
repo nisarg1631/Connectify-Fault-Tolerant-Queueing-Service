@@ -1,0 +1,320 @@
+version: "3.0"
+name: "connectify"
+services:
+    # LOAD BALANCER
+    gateway:
+        image: nginx
+        container_name: gateway
+        volumes:
+            - ./nginx/conf:/etc/nginx/conf.d/
+        ports:
+            - 8080:80
+        deploy:
+        networks:       
+            - internal
+        depends_on:
+            - primary_manager
+            - readonly_manager
+        environment:
+            - COMPOSE_PROJECT_NAME 
+    
+    # PRIMARY MANAGER
+    primary_manager:
+        image: connectify/primary_manager
+        build: ./primary_manager
+        container_name: primary
+        hostname: primary
+        deploy:
+        networks:       
+            - internal
+        environment:
+            - DB_NAME=prime_datadb
+            - READ_REPLICAS=3 # same as replicas of read only managers
+            - COMPOSE_PROJECT_NAME 
+        entrypoint: python3
+        command: app.py
+        depends_on: 
+            - prime_datadb
+
+    # READ ONLY MANAGERS
+    readonly_manager:
+        image: connectify/readonly_manager
+        build: ./readonly_manager
+        deploy:
+            replicas: 3
+        networks:       
+            - internal
+        environment:
+            - DB_NAME=prime_datadb
+            - COMPOSE_PROJECT_NAME 
+        entrypoint: python3
+        command: app.py
+        depends_on: 
+            - primary_manager
+
+    # BROKERS
+     
+    #     Template to add new broker 
+    #     broker-<id>:
+    #         image : connectify/broker
+    #         build : ./broker
+    #         container_name : broker-<id>
+    #         networks : internal
+    
+    broker-1:
+        image: connectify/broker
+        build: ./broker
+        container_name: broker-1
+        networks:       
+            - internal
+        restart: always
+        hostname: broker-1
+        depends_on:
+            - masterdb-1
+        environment:
+            - WRITE_DB_NAME=masterdb-1
+            - READ_DB_NAME=slavedb-1
+            - COMPOSE_PROJECT_NAME 
+        entrypoint: python3
+        command: app.py
+
+    broker-2: 
+        image: connectify/broker
+        build: ./broker
+        container_name: broker-2
+        networks:       
+            - internal
+        restart: always
+        hostname: broker-2
+        depends_on:
+            - masterdb-2
+        environment:
+            - WRITE_DB_NAME=masterdb-2
+            - READ_DB_NAME=slavedb-2
+            - COMPOSE_PROJECT_NAME 
+        entrypoint: python3
+        command: app.py
+    
+    broker-3: 
+        image: connectify/broker
+        build: ./broker
+        container_name: broker-3
+        networks:       
+            - internal
+        restart: always
+        hostname: broker-3
+        depends_on:
+            - masterdb-3
+        environment:
+            - WRITE_DB_NAME=masterdb-3
+            - READ_DB_NAME=slavedb-3
+            - COMPOSE_PROJECT_NAME 
+
+    # PRIME_MANAGER DATA DB 
+
+    prime_datadb: 
+        image: postgres:13
+        container_name: prime_datadb
+        restart: always
+        volumes:
+                - ./database_volumes/prime_datadb_data:/var/lib/postgresql/data
+        hostname: prime_datadb
+        environment:
+                - 'POSTGRES_PASSWORD=postgres'
+                - 'POSTGRES_DB=prime_datadb'
+                - COMPOSE_PROJECT_NAME 
+        networks:       
+            - internal
+    
+    # MASTER DATABASES
+
+    masterdb-1:
+        build: ./master
+        container_name: masterdb-1
+        restart: always
+        volumes:
+                - ./database_volumes/masterdb1_data:/var/lib/postgresql/data
+        hostname: masterdb-1
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-1
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME 
+        networks:       
+            - internal
+        
+    masterdb-2:
+        build: ./master
+        container_name: masterdb-2
+        restart: always
+        volumes:
+                - ./database_volumes/masterdb2_data:/var/lib/postgresql/data
+        hostname: masterdb-2
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-2
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME 
+        networks:       
+            - internal
+    
+    masterdb-3:
+        build: ./master
+        container_name: masterdb-3
+        restart: always
+        volumes:
+                - ./database_volumes/masterdb3_data:/var/lib/postgresql/data
+        hostname: masterdb-3
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-3
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME 
+        networks:       
+            - internal
+    
+    # SLAVE DATABASES
+
+    slavedb-1:
+        build: ./slave
+        container_name: slavedb-1
+        restart: always
+        hostname: slavedb-1
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-1
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME
+                - MASTER_DB=masterdb-1 
+        networks:       
+            - internal
+        
+    slavedb-2:
+        build: ./slave
+        container_name: slavedb-2
+        restart: always
+        hostname: slavedb-2
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-2
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME
+                - MASTER_DB=masterdb-2
+        networks:       
+            - internal
+    
+    slavedb-3:
+        build: ./slave
+        container_name: slavedb-3
+        restart: always
+        hostname: slavedb-3
+        environment:
+                - POSTGRES_USER=postgres
+                - POSTGRES_PASSWORD=postgres
+                - POSTGRES_DB=masterdb-3
+                - PG_REP_USER=rep
+                - PG_REP_PASSWORD=rep
+                - COMPOSE_PROJECT_NAME
+                - MASTER_DB=masterdb-3
+        networks:       
+            - internal
+
+
+    # REDIS
+    redis-cluster:
+        image: 'redis:6.0-alpine'
+        command: redis-cli --cluster create 172.19.0.31:6373 172.19.0.32:6374 172.19.0.33:6375 172.19.0.34:6376 172.19.0.35:6377 172.19.0.36:6378 --cluster-replicas 1 --cluster-yes
+        networks:
+            internal:
+                ipv4_address: 172.19.0.30
+        depends_on:
+            - redis-node-1
+            - redis-node-2
+            - redis-node-3
+            - redis-node-4
+            - redis-node-5
+            - redis-node-6
+    
+    redis-node-1:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6373:6373'
+        volumes:
+            - ./redis_volumes/redis-node-1-data:/var/lib/redis
+            - ./redis/redis-node-1.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.31
+    redis-node-2:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6374:6374'
+        volumes:
+            - ./redis_volumes/redis-node-2-data:/var/lib/redis
+            - ./redis/redis-node-2.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.32
+    redis-node-3:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6375:6375'
+        volumes:
+            - ./redis_volumes/redis-node-3-data:/var/lib/redis
+            - ./redis/redis-node-3.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.33
+    redis-node-4:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6376:6376'
+        volumes:
+            - ./redis_volumes/redis-node-4-data:/var/lib/redis
+            - ./redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.34
+    redis-node-5:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6377:6377'
+        volumes:
+            - ./redis_volumes/redis-node-5-data:/var/lib/redis
+            - ./redis/redis-node-5.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.35
+    redis-node-6:
+        image: 'redis:6.0-alpine'
+        command: redis-server /usr/local/etc/redis/redis.conf
+        ports:
+            - '6378:6378'
+        volumes:
+            - ./redis_volumes/redis-node-6-data:/var/lib/redis
+            - ./redis/redis-node-6.conf:/usr/local/etc/redis/redis.conf
+        networks:
+            app_subnet:
+                ipv4_address: 172.19.0.36
+
+networks:
+    internal:
+        driver: bridge
+        ipam:
+            config:
+                - subnet: 172.19.0.0/24
