@@ -33,12 +33,7 @@ def index():
     }
 )
 def topics():
-    """Return all the topics or add a topic."""
-
-    # If method is POST add a topic
-    if request.method == "POST":
-        topic_name = request.get_json()["name"]
-        partition_index = request.get_json()["partition_index"]
+    """Add a topic."""
     try:
         master_queue.add_topic(topic_name, partition_index)
         return make_response(
@@ -51,29 +46,10 @@ def topics():
             200,
         )
     except Exception as e:
-        raise e
-
-@app.route(rule="/consumer/register", methods=["POST"])
-@expects_json(
-    {
-        "type": "object",
-        "properties": {"topic": {"type": "string"}, "consumer_id":{"type":"string"},"partition_index":{"type":"number"}},
-        "required": ["topic","consumer_id","partition_index"],
-    }
-)
-def register_consumer():
-    """Register a consumer for a topic."""
-    topic_name = request.get_json()["topic"]
-    consumer_id = request.get_json()["consumer_id"]
-    partition_index = request.get_json()["partition_index"]
-    try:
-        master_queue.add_consumer(topic_name,partition_index,consumer_id)
         return make_response(
-            jsonify({"status": "success"}),
-            200,
+            jsonify({"status": "failure", "message": str(e)}),
+            400,
         )
-    except Exception as e:
-        raise
 
 @app.route(rule="/producer/produce", methods=["POST"])
 @expects_json(
@@ -83,9 +59,10 @@ def register_consumer():
             "topic": {"type": "string"},
             "producer_id": {"type": "string"},
             "message": {"type": "string"},
-            "partition_index":{"type":"number"}
+            "partition_index": {"type":"number"},
+            "log_index": {"type": "number"}
         },
-        "required": ["topic", "producer_id", "message","partition_index"],
+        "required": ["topic", "producer_id", "message", "partition_index", "log_index"],
     }
 )
 def produce():
@@ -94,43 +71,11 @@ def produce():
     producer_id = request.get_json()["producer_id"]
     message = request.get_json()["message"]
     partition_index = request.get_json()["partition_index"]
+    log_index = request.get_json()["log_index"]
     try:
-        master_queue.add_log(topic_name, partition_index,producer_id, message)
+        master_queue.add_log(log_index, topic_name, partition_index, producer_id, message)
         return make_response(
             jsonify({"status": "success"}),
-            200,
-        )
-    except Exception as e:
-        raise
-
-
-@app.route(rule="/consumer/consume", methods=["GET"])
-@expects_json(
-    {
-        "type": "object",
-        "properties": {
-            "topic": {"type": "string"},
-            "consumer_id": {"type": "string"},
-            "partition_index": {"type": "number"}
-        },
-        "required": ["topic", "consumer_id", "partition_index"],
-    }
-)
-def consume():
-    """Consume a log from a topic."""
-    topic_name = request.get_json()["topic"]
-    consumer_id = request.get_json()["consumer_id"]
-    partition_index = request.get_json()["partition_index"]
-    try:
-        log = master_queue.get_log(topic_name, partition_index, consumer_id)
-        if log is not None:
-            return make_response(
-                jsonify({"status": "success", "message": log, "partition_read": partition_index}), 200
-            )
-        return make_response(
-            jsonify(
-                {"status": "failure", "message": "No logs available to pull."}
-            ),
             200,
         )
     except Exception as e:
@@ -140,29 +85,30 @@ def consume():
         )
 
 
-@app.route(rule="/size", methods=["GET"])
+@app.route(rule="/consumer/consume", methods=["GET"])
 @expects_json(
     {
         "type": "object",
         "properties": {
             "topic": {"type": "string"},
-            "consumer_id": {"type": "string"},
-            "partition_index": {"type": "number"}
+            "partition_index": {"type": "number"},
+            "log_index": {"type": "number"}
         },
-        "required": ["topic", "consumer_id"],
+        "required": ["topic", "partition_index", "log_index"],
     }
 )
-def size():
-    """Return the number of log messages in the requested topic for this consumer."""
+def consume():
+    """Get a log from a topic."""
     topic_name = request.get_json()["topic"]
-    consumer_id = request.get_json()["consumer_id"]
-    partition_index = None
+    partition_index = request.get_json()["partition_index"]
+    log_index = request.get_json()["log_index"]
     try:
-        partition_index = int(request.get_json()["partition_index"])
-    except:
-        pass
-    try:
-        sizes = master_queue.get_size(consumer_id, topic_name, partition_index)
-        return make_response(jsonify({"status": "success", "sizes": sizes}), 200)
+        log = master_queue.get_log(topic_name, partition_index, log_index)
+        return make_response(
+            jsonify({"status": "success", "message": log, "partition_read": partition_index}), 200
+        )
     except Exception as e:
-        raise
+        return make_response(
+            jsonify({"status": "failure", "message": str(e)}),
+            400,
+        )
