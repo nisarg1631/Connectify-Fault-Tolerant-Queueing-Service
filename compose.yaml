@@ -254,7 +254,7 @@ services:
             - ./redis_volumes/redis-node-1-data:/var/lib/redis
             - ./redis/redis-node-1.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.31
     redis-node-2:
         image: 'redis:6.0-alpine'
@@ -265,7 +265,7 @@ services:
             - ./redis_volumes/redis-node-2-data:/var/lib/redis
             - ./redis/redis-node-2.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.32
     redis-node-3:
         image: 'redis:6.0-alpine'
@@ -276,7 +276,7 @@ services:
             - ./redis_volumes/redis-node-3-data:/var/lib/redis
             - ./redis/redis-node-3.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.33
     redis-node-4:
         image: 'redis:6.0-alpine'
@@ -287,7 +287,7 @@ services:
             - ./redis_volumes/redis-node-4-data:/var/lib/redis
             - ./redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.34
     redis-node-5:
         image: 'redis:6.0-alpine'
@@ -298,7 +298,7 @@ services:
             - ./redis_volumes/redis-node-5-data:/var/lib/redis
             - ./redis/redis-node-5.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.35
     redis-node-6:
         image: 'redis:6.0-alpine'
@@ -309,7 +309,7 @@ services:
             - ./redis_volumes/redis-node-6-data:/var/lib/redis
             - ./redis/redis-node-6.conf:/usr/local/etc/redis/redis.conf
         networks:
-            app_subnet:
+            internal:
                 ipv4_address: 172.19.0.36
 
 networks:

@@ -28,14 +28,17 @@ def index():
 @expects_json(
     {
         "type": "object",
-        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"}},
-        "required": ["name","partition_index"],
+        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"},"other_brokers":{"type":"array"}},
+        "required": ["name","partition_index","other_brokers"],
     }
 )
 def topics():
     """Add a topic."""
     try:
-        master_queue.add_topic(topic_name, partition_index)
+        topic_name = request.json()["name"]
+        partition_index = request.json()["partition_index"]
+        other_brokers = request.json()["other_brokers"]
+        master_queue.add_topic(topic_name, partition_index, other_brokers)
         return make_response(
             jsonify(
                 {

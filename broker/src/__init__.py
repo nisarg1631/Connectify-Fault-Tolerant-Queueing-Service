@@ -15,6 +15,7 @@ from src.models import MasterQueue
 
 master_queue = MasterQueue()
 
+
 from src import views
 
 with app.app_context():
@@ -22,7 +23,7 @@ with app.app_context():
         print("\033[94mTesting mode detected. Dropping all tables...\033[0m")
         db.drop_all()
         print("\033[94mAll tables dropped.\033[0m")
-    
     print("\033[94mCreating all tables...\033[0m")
     db.create_all()
     print("\033[94mAll tables created.\033[0m")
+    master_queue.init_from_db()
