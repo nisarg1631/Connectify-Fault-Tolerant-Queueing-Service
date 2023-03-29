@@ -1,0 +1,20 @@
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.1:35075         0.0.0.0:*               LISTEN      215/node            
+tcp        0      0 0.0.0.0:8080            0.0.0.0:*               LISTEN      25199/docker-proxy  
+tcp        0      0 0.0.0.0:6377            0.0.0.0:*               LISTEN      22979/docker-proxy  
+tcp        0      0 0.0.0.0:6376            0.0.0.0:*               LISTEN      23236/docker-proxy  
+tcp        0      0 0.0.0.0:6378            0.0.0.0:*               LISTEN      23001/docker-proxy  
+tcp        0      0 0.0.0.0:6373            0.0.0.0:*               LISTEN      23329/docker-proxy  
+tcp        0      0 0.0.0.0:6375            0.0.0.0:*               LISTEN      23528/docker-proxy  
+tcp        0      0 0.0.0.0:6374            0.0.0.0:*               LISTEN      22959/docker-proxy  
+tcp        0      0 127.0.0.1:44693         0.0.0.0:*               LISTEN      127/node            
+tcp6       0      0 :::8080                 :::*                    LISTEN      25207/docker-proxy  
+tcp6       0      0 :::6377                 :::*                    LISTEN      22987/docker-proxy  
+tcp6       0      0 :::6376                 :::*                    LISTEN      23247/docker-proxy  
+tcp6       0      0 :::6378                 :::*                    LISTEN      23011/docker-proxy  
+tcp6       0      0 :::6373                 :::*                    LISTEN      23340/docker-proxy  
+tcp6       0      0 :::6375                 :::*                    LISTEN      23539/docker-proxy  
+tcp6       0      0 :::6374                 :::*                    LISTEN      22966/docker-proxy  
+udp        0      0 127.0.0.1:323           0.0.0.0:*                           -                   
+udp6       0      0 ::1:323                 :::*                                -                   

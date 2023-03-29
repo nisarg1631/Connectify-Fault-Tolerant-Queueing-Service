@@ -28,8 +28,8 @@ def index():
 @expects_json(
     {
         "type": "object",
-        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"},"other_brokers":{"type":"array"}},
-        "required": ["name","partition_index","other_brokers"],
+        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"},"other_brokers":{"type":"array"},"port":{"type":"string"}},
+        "required": ["name","partition_index","other_brokers", "port"],
     }
 )
 def topics():
@@ -38,7 +38,8 @@ def topics():
         topic_name = request.get_json()["name"]
         partition_index = request.get_json()["partition_index"]
         other_brokers = request.get_json()["other_brokers"]
-        master_queue.add_topic(topic_name, partition_index, other_brokers)
+        port  = request.get_json()["port"]
+        master_queue.add_topic(topic_name, partition_index, other_brokers,port)
         return make_response(
             jsonify(
                 {

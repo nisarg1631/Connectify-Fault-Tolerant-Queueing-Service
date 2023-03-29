@@ -12,6 +12,8 @@ class Topic(SyncObj):
         super(Topic,self).__init__(selfNode = my_broker,otherNodes = other_brokers)
         self._name : str = name
         self._partition_index : int = partition_index
+        self.waitBinded()
+        self.waitReady()
 
     @replicated_sync
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:

@@ -7,3 +7,4 @@ class Broker(db.Model):
     name = db.Column(db.String(256))
     partition_index = db.Column(db.Integer)
     broker = db.Column(db.String(256))
+    port = db.Column(db.String(256))
