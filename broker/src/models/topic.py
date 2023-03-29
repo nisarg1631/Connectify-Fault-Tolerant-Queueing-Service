@@ -1,7 +1,7 @@
 from src import db
 from src import LogDB
 from typing import List
-from pysyncobj import SyncObj, replicated
+from pysyncobj import SyncObj, replicated_sync
 
 class Topic(SyncObj):
     """
@@ -9,11 +9,11 @@ class Topic(SyncObj):
     """
 
     def __init__(self, name: str, partition_index: int, other_brokers : List[str], my_broker : str):
-        super(Topic,self).__init__(my_broker,other_brokers)
+        super(Topic,self).__init__(selfNode = my_broker,otherNodes = other_brokers)
         self._name : str = name
         self._partition_index : int = partition_index
 
-    @replicated
+    @replicated_sync
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:
         db.session.add(
             LogDB(

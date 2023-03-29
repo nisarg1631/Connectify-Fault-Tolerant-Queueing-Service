@@ -43,6 +43,7 @@ class MasterQueue:
             return log.message
         raise Exception(f"No log found with index {log_index} in topic {topic_name} - partition {partition_index}") 
 
+
     def add_log(self, log_index: int, topic_name: str, partition_index:int, producer_id: str, message: str):
         """Add a log to the partition."""
         timestamp = time.time()

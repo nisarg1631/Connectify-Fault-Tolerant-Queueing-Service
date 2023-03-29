@@ -35,9 +35,9 @@ def index():
 def topics():
     """Add a topic."""
     try:
-        topic_name = request.json()["name"]
-        partition_index = request.json()["partition_index"]
-        other_brokers = request.json()["other_brokers"]
+        topic_name = request.get_json()["name"]
+        partition_index = request.get_json()["partition_index"]
+        other_brokers = request.get_json()["other_brokers"]
         master_queue.add_topic(topic_name, partition_index, other_brokers)
         return make_response(
             jsonify(
