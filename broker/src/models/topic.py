@@ -1,4 +1,4 @@
-from src import db
+from src import db, app
 from src import LogDB
 from typing import List
 from pysyncobj import SyncObj, replicated_sync
@@ -17,17 +17,18 @@ class Topic(SyncObj):
 
     @replicated_sync
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:
-        db.session.add(
-            LogDB(
-                id=log_index,
-                topic_name=self._name,
-                partition_index=self._partition_index,
-                producer_id=producer_id,
-                message=message,
-                timestamp=timestamp,
+        with app.app_context(): #TODO RUN ENGINE
+            db.session.add(
+                LogDB(
+                    id=log_index,
+                    topic_name=self._name,
+                    partition_index=self._partition_index,
+                    producer_id=producer_id,
+                    message=message,
+                    timestamp=timestamp,
+                )
             )
-        )
-        db.session.commit()
+            db.session.commit()
 
 
     

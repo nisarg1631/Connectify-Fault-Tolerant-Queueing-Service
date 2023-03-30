@@ -71,41 +71,41 @@ services:
       - REPLICA_NO=3
       - TOT_REPLICAS=${TOT_REPLICAS}
 
-  atm-4:
-    image: raft-atm/atm
-    build: ./atm
-    tty: true
-    stdin_open: true
-    container_name: atm-4
-    hostname: atm-4
-    networks:
-      - internal
-    volumes:
-    - ./db:/app/db
-    - ./journal:/app/journal
-    - ./dump:/app/dump
-    environment:
-      - COMPOSE_PROJECT_NAME
-      - REPLICA_NO=4
-      - TOT_REPLICAS=${TOT_REPLICAS}
+  # atm-4:
+  #   image: raft-atm/atm
+  #   build: ./atm
+  #   tty: true
+  #   stdin_open: true
+  #   container_name: atm-4
+  #   hostname: atm-4
+  #   networks:
+  #     - internal
+  #   volumes:
+  #   - ./db:/app/db
+  #   - ./journal:/app/journal
+  #   - ./dump:/app/dump
+  #   environment:
+  #     - COMPOSE_PROJECT_NAME
+  #     - REPLICA_NO=4
+  #     - TOT_REPLICAS=${TOT_REPLICAS}
 
-  atm-5:
-    image: raft-atm/atm
-    build: ./atm
-    tty: true
-    stdin_open: true
-    container_name: atm-5
-    hostname: atm-5
-    networks:
-      - internal
-    volumes:
-    - ./db:/app/db
-    - ./journal:/app/journal
-    - ./dump:/app/dump
-    environment:
-      - COMPOSE_PROJECT_NAME
-      - REPLICA_NO=5
-      - TOT_REPLICAS=${TOT_REPLICAS}
+  # atm-5:
+  #   image: raft-atm/atm
+  #   build: ./atm
+  #   tty: true
+  #   stdin_open: true
+  #   container_name: atm-5
+  #   hostname: atm-5
+  #   networks:
+  #     - internal
+  #   volumes:
+  #   - ./db:/app/db
+  #   - ./journal:/app/journal
+  #   - ./dump:/app/dump
+  #   environment:
+  #     - COMPOSE_PROJECT_NAME
+  #     - REPLICA_NO=5
+  #     - TOT_REPLICAS=${TOT_REPLICAS}
 
 networks:
   internal:

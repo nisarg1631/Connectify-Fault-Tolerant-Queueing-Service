@@ -5,6 +5,7 @@ from src import os
 from src import TopicDB, LogDB, BrokerDB
 from typing import Dict, Tuple, List
 from src.models import Topic
+import logging
 
 class MasterQueue:
     """
@@ -53,6 +54,9 @@ class MasterQueue:
     def add_log(self, log_index: int, topic_name: str, partition_index:int, producer_id: str, message: str):
         """Add a log to the partition."""
         timestamp = time.time()
-        raise Exception(f"{self._topics[(topic_name,partition_index)].getStatus()}")
+        # TODO: ADD TIMEOUT AND DO TRY CATCH
+        if self._topics[(topic_name,partition_index)].getStatus()["leader"] == None :
+            raise Exception(f"Cluster Not Available.")
+        # logging.warn(self._topics[(topic_name,partition_index)].getStatus())
         self._topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
         
