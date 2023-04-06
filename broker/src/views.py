@@ -2,7 +2,7 @@ from flask import make_response, request, jsonify
 from flask_expects_json import expects_json
 from jsonschema import ValidationError
 
-from src import app, master_queue, expects_json
+from src import app, master_queue, expects_json, new_topics_queue
 
 
 @app.errorhandler(400)
@@ -39,7 +39,9 @@ def topics():
         partition_index = request.get_json()["partition_index"]
         other_brokers = request.get_json()["other_brokers"]
         port  = request.get_json()["port"]
-        master_queue.add_topic(topic_name, partition_index, other_brokers,port)
+        # master_queue.add_topic(topic_name, partition_index, other_brokers,port)
+        new_topics_queue.put([topic_name,partition_index,other_brokers,port])
+
         return make_response(
             jsonify(
                 {

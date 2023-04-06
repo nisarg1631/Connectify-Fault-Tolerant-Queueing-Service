@@ -13,7 +13,7 @@ class MasterQueue:
     """
 
     def __init__(self) -> None:
-        self._topics : Dict[Tuple[str,int], Topic] = {}
+        self.topics : Dict[Tuple[str,int], Topic] = {}
         self._my_broker : str = os.environ["HOSTNAME"]
     
     def make_raft_addr(self,broker:str, port:str) -> str:
@@ -24,7 +24,7 @@ class MasterQueue:
         for topic in topics:
             brokers = [self.make_raft_addr(obj.broker,obj.port) for obj in BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).all()]
             port = BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).first().port
-            self._topics[(topic.name, topic.partition_index)] = Topic(topic.name,topic.partition_index, brokers, self.make_raft_addr(self._my_broker,port))
+            self.topics[(topic.name, topic.partition_index)] = Topic(topic.name,topic.partition_index, brokers, self.make_raft_addr(self._my_broker,port))
 
 
 
@@ -34,7 +34,7 @@ class MasterQueue:
         # Create a RAFT synced Topic Object
         other_brokers_with_ports = [self.make_raft_addr(broker,port) for broker in other_brokers]
         my_broker_with_port = self.make_raft_addr(self._my_broker,port)
-        self._topics[(topic_name,partition_index)] = Topic(topic_name,partition_index,other_brokers_with_ports, my_broker_with_port)
+        self.topics[(topic_name,partition_index)] = Topic(topic_name,partition_index,other_brokers_with_ports, my_broker_with_port)
 
         db.session.add(TopicDB(name=topic_name, partition_index = partition_index))
         for broker in other_brokers:
@@ -55,8 +55,8 @@ class MasterQueue:
         """Add a log to the partition."""
         timestamp = time.time()
         # TODO: ADD TIMEOUT AND DO TRY CATCH
-        if self._topics[(topic_name,partition_index)].getStatus()["leader"] == None :
+        if self.topics[(topic_name,partition_index)].getStatus()["leader"] == None :
             raise Exception(f"Cluster Not Available.")
-        # logging.warn(self._topics[(topic_name,partition_index)].getStatus())
-        self._topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
+        # logging.warn(self.topics[(topic_name,partition_index)].getStatus())
+        self.topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
         
