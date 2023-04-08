@@ -31,7 +31,7 @@ services:
             - DB_NAME=prime_datadb
             - READ_REPLICAS=3 # same as replicas of read only managers
             - COMPOSE_PROJECT_NAME 
-            - REDIS_CLUSTER_NODES='172.20.0.31:6373,172.20.0.32:6374,172.20.0.33:6375,172.20.0.34:6376,172.20.0.35:6377,172.20.0.36:6378'
+            - REDIS_CLUSTER_NODES='172.24.0.31:6373,172.24.0.32:6374,172.24.0.33:6375,172.24.0.34:6376,172.24.0.35:6377,172.24.0.36:6378'
         entrypoint: python3
         command: app.py
         depends_on: 
