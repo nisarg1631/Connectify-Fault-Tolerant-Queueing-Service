@@ -66,8 +66,6 @@ services:
         image: connectify/broker
         build: ./broker
         container_name: broker-1
-        networks:       
-            - internal
         restart: always
         hostname: broker-1
         depends_on:
@@ -77,13 +75,14 @@ services:
             - COMPOSE_PROJECT_NAME 
         entrypoint: python3
         command: app.py
+        networks:
+            internal:
+                ipv4_address: 172.24.0.18
 
     broker-2: 
         image: connectify/broker
         build: ./broker
         container_name: broker-2
-        networks:       
-            - internal
         restart: always
         hostname: broker-2
         depends_on:
@@ -93,13 +92,14 @@ services:
             - COMPOSE_PROJECT_NAME 
         entrypoint: python3
         command: app.py
+        networks:
+            internal:
+                ipv4_address: 172.24.0.19
     
     broker-3: 
         image: connectify/broker
         build: ./broker
         container_name: broker-3
-        networks:       
-            - internal
         restart: always
         hostname: broker-3
         depends_on:
@@ -107,6 +107,9 @@ services:
         environment:
             - WRITE_DB_NAME=brokerdb-3
             - COMPOSE_PROJECT_NAME 
+        networks:
+            internal:
+                ipv4_address: 172.24.0.20
 
     # PRIME_MANAGER DATA DB 
 
@@ -174,10 +177,10 @@ services:
     # REDIS
     redis-cluster:
         image: 'redis:6.0-alpine'
-        command: redis-cli --cluster create 172.20.0.31:6373 172.20.0.32:6374 172.20.0.33:6375 172.20.0.34:6376 172.20.0.35:6377 172.20.0.36:6378 --cluster-replicas 1 --cluster-yes
+        command: redis-cli --cluster create 172.24.0.31:6373 172.24.0.32:6374 172.24.0.33:6375 172.24.0.34:6376 172.24.0.35:6377 172.24.0.36:6378 --cluster-replicas 1 --cluster-yes
         networks:
             internal:
-                ipv4_address: 172.20.0.30
+                ipv4_address: 172.24.0.30
         depends_on:
             - redis-node-1
             - redis-node-2
@@ -196,7 +199,7 @@ services:
             - ./redis/redis-node-1.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.31
+                ipv4_address: 172.24.0.31
     redis-node-2:
         image: 'redis:6.0-alpine'
         command: redis-server /usr/local/etc/redis/redis.conf
@@ -207,7 +210,7 @@ services:
             - ./redis/redis-node-2.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.32
+                ipv4_address: 172.24.0.32
     redis-node-3:
         image: 'redis:6.0-alpine'
         command: redis-server /usr/local/etc/redis/redis.conf
@@ -218,7 +221,7 @@ services:
             - ./redis/redis-node-3.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.33
+                ipv4_address: 172.24.0.33
     redis-node-4:
         image: 'redis:6.0-alpine'
         command: redis-server /usr/local/etc/redis/redis.conf
@@ -229,7 +232,7 @@ services:
             - ./redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.34
+                ipv4_address: 172.24.0.34
     redis-node-5:
         image: 'redis:6.0-alpine'
         command: redis-server /usr/local/etc/redis/redis.conf
@@ -240,7 +243,7 @@ services:
             - ./redis/redis-node-5.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.35
+                ipv4_address: 172.24.0.35
     redis-node-6:
         image: 'redis:6.0-alpine'
         command: redis-server /usr/local/etc/redis/redis.conf
@@ -251,11 +254,11 @@ services:
             - ./redis/redis-node-6.conf:/usr/local/etc/redis/redis.conf
         networks:
             internal:
-                ipv4_address: 172.20.0.36
+                ipv4_address: 172.24.0.36
 
 networks:
     internal:
         driver: bridge
         ipam:
             config:
-                - subnet: 172.20.0.0/24
+                - subnet: 172.24.0.0/24

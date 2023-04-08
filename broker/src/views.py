@@ -2,7 +2,7 @@ from flask import make_response, request, jsonify
 from flask_expects_json import expects_json
 from jsonschema import ValidationError
 
-from src import app, master_queue, expects_json
+from src import app, master_queue, expects_json, new_topics_queue
 
 
 @app.errorhandler(400)
@@ -28,14 +28,20 @@ def index():
 @expects_json(
     {
         "type": "object",
-        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"}},
-        "required": ["name","partition_index"],
+        "properties": {"name": {"type": "string"}, "partition_index": {"type": "number"},"other_brokers":{"type":"array"},"port":{"type":"string"}},
+        "required": ["name","partition_index","other_brokers", "port"],
     }
 )
 def topics():
     """Add a topic."""
     try:
-        master_queue.add_topic(topic_name, partition_index)
+        topic_name = request.get_json()["name"]
+        partition_index = request.get_json()["partition_index"]
+        other_brokers = request.get_json()["other_brokers"]
+        port  = request.get_json()["port"]
+        # master_queue.add_topic(topic_name, partition_index, other_brokers,port)
+        new_topics_queue.put([topic_name,partition_index,other_brokers,port])
+
         return make_response(
             jsonify(
                 {
