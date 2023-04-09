@@ -21,8 +21,6 @@ class MasterQueue:
 
     def init_from_db(self) -> None:
         topics = TopicDB.query.all()
-        db.session.query(LogDB).delete()
-        db.session.commit()
         for topic in topics:
             brokers = [self.make_raft_addr(obj.broker,obj.port) for obj in BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).all()]
             port = BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).first().port

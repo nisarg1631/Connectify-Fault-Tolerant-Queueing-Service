@@ -11,7 +11,7 @@ class Log(db.Model):
     )
     partition_index = db.Column(db.Integer,primary_key=True)
     producer_id = db.Column(
-        db.String(32),nullable=False
+        db.String(256),nullable=False
     )
     message = db.Column(db.String(256), nullable=False)
     timestamp = db.Column(db.Float, nullable=False)

@@ -25,16 +25,17 @@ class Topic(SyncObj):
     @replicated_sync(timeout=10)
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:
         with app.app_context(): 
-            db.session.add(
-                LogDB(
-                    id=log_index,
-                    topic_name=self._name,
-                    partition_index=self._partition_index,
-                    producer_id=producer_id,
-                    message=message,
-                    timestamp=timestamp,
-                )
-            )
+            # db.session.add(
+            #     LogDB(
+            #         id=log_index,
+            #         topic_name=self._name,
+            #         partition_index=self._partition_index,
+            #         producer_id=producer_id,
+            #         message=message,
+            #         timestamp=timestamp,
+            #     )
+            # )
+            db.session.execute(f'INSERT INTO log ( id, topic_name, partition_index, producer_id, message, timestamp) VALUES ({log_index},\'{self._name}\',{self._partition_index},\'{producer_id}\',\'{message}\', {timestamp}) ON CONFLICT (id, topic_name, partition_index) DO NOTHING;')
             db.session.commit()
             
 
