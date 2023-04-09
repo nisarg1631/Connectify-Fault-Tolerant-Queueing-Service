@@ -55,8 +55,11 @@ class MasterQueue:
         """Add a log to the partition."""
         timestamp = time.time()
         # TODO: ADD TIMEOUT AND DO TRY CATCH
-        if self.topics[(topic_name,partition_index)].getStatus()["leader"] == None :
-            raise Exception(f"Cluster Not Available.")
+        # if self.topics[(topic_name,partition_index)].getStatus()["leader"] == None :
+        #     raise Exception(f"Cluster Not Available.")
         # logging.warn(self.topics[(topic_name,partition_index)].getStatus())
-        self.topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
+        try:
+            self.topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
+        except Exception as e:
+            raise Exception(f"Cluster Not Available.")
         
