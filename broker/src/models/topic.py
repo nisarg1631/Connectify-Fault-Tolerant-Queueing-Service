@@ -1,7 +1,9 @@
-from src import db, app
+from src import db, app, os
 from src import LogDB
 from typing import List
-from pysyncobj import SyncObj, replicated_sync
+from pysyncobj import SyncObj, SyncObjConf, replicated_sync
+
+HOSTNAME = os.environ["HOSTNAME"]
 
 class Topic(SyncObj):
     """
@@ -9,7 +11,11 @@ class Topic(SyncObj):
     """
 
     def __init__(self, name: str, partition_index: int, other_brokers : List[str], my_broker : str):
-        super(Topic,self).__init__(selfNode = my_broker,otherNodes = other_brokers)
+        super(Topic,self).__init__(selfNode = my_broker,
+                                   otherNodes = other_brokers,
+                                   conf = SyncObjConf(
+                                    journalFile=f"journal/ptn-{name}-{partition_index}.journal")
+                                  )
         self._name : str = name
         self._partition_index : int = partition_index
         self.waitBinded()

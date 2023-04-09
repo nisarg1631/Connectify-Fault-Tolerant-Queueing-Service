@@ -69,6 +69,8 @@ services:
         container_name: broker-1
         restart: always
         hostname: broker-1
+        volumes:
+            - ./broker/journal/broker-1/:/app/journal/
         depends_on:
             - brokerdb-1
         environment:
@@ -86,6 +88,8 @@ services:
         container_name: broker-2
         restart: always
         hostname: broker-2
+        volumes:
+            - ./broker/journal/broker-2/:/app/journal/
         depends_on:
             - brokerdb-2
         environment:
@@ -103,6 +107,8 @@ services:
         container_name: broker-3
         restart: always
         hostname: broker-3
+        volumes:
+            - ./broker/journal/broker-3/:/app/journal/
         depends_on:
             - brokerdb-3
         environment:
