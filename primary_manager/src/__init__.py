@@ -1,29 +1,29 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-import requests
-
-from src.json_validator import expects_json
-from src.async_requests import AsyncRequests
-from src.sync_utils import sync_broker_metadata
+from redis.cluster import ClusterNode
 from time import sleep
+import requests
+import threading
 import config
 import os
-import threading
+
+from src.json_validator import expects_json
 
 app = Flask(__name__)
 app.config.from_object(config.DevConfig)
 
-db = SQLAlchemy(app)
-from db_models import *
-
+startup_nodes = [ClusterNode(ip, port) for ip, port in app.config["REDIS_CLUSTER_NODES"]]
 from src.models import DataManager
-
-data_manager = DataManager()
+data_manager = DataManager(startup_nodes)
 
 def health_check():
     with app.app_context():
         while True:
-            brokers = data_manager.get_brokers()
+            # broker health - 0 means healthy, for every failue
+            # increment by 1, when counter reaches -3, mark broker
+            # as inactive
+            # brokers = data_manager.get_brokers()
+            brokers = [] # TODO: reimplement healthcheck using REDIS structures
             for broker in brokers:
                 try:
                     response = requests.get(f"http://{broker}:5000/")
@@ -57,29 +57,9 @@ from src import views
 
 with app.app_context():
     if app.config["TESTING"]:
-        print("\033[94mTesting mode detected \033[0m")
-        db.drop_all()
-        print("\033[94mAll tables dropped.\033[0m")
-    
-    print("\033[94mCreating all tables...\033[0m")
-    db.create_all()
-    print("\033[94mAll tables created.\033[0m")
-    # db.session.add(BrokerDB(name = 'broker-1'))
-    # db.session.add(BrokerDB(name = 'broker-2'))
-    # db.session.add(BrokerDB(name = 'broker-3'))
-    # db.session.commit()
-    # print("\033[94mBrokers Added.\033[0m")
-    print("\033[94mInitializing master queue from database...\033[0m")
-    data_manager.init_from_db()
-    print("\033[94mMaster queue initialized from database.\033[0m")
+        print("\033[94mTesting mode detected\033[0m")
+        data_manager.drop_all_metadata()
+        print("\033[94mAll data dropped\033[0m")
 
     print("\033[94mStarting health check manager...\033[0m")
     threading.Thread(target=health_check).start()
-
-    # print the master queue for debugging purposes
-    if app.config["FLASK_ENV"] == "development":
-        print("Active brokers in manager:")
-        print(data_manager._active_brokers)
-        print("Inactive brokers in manager:")
-        print(data_manager._inactive_brokers)
-    
