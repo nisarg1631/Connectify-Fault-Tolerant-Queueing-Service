@@ -15,7 +15,7 @@ class Topic(SyncObj):
         self.waitBinded()
         self.waitReady()
 
-    @replicated_sync
+    @replicated_sync(timeout=10)
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:
         with app.app_context(): #TODO RUN ENGINE
             db.session.add(

@@ -28,10 +28,8 @@ from src import views
 
 def add_topic_global() -> None:
     """Add a partition to the database."""
-    logging.error("THREAD STARTED")
     while True: 
 
-        logging.error("PRINT")
         # Obtain relevant information
         current_topic = new_topics_queue.get()
         
