@@ -140,7 +140,7 @@ def produce():
         
         broker_host, partition_index = data_manager.get_broker_host(topic_name, producer_id, partition_index)
         log_index = data_manager.get_log_index(topic_name, partition_index)
-        requests.post(
+        response = requests.post(
             "http://"+broker_host+":5000/producer/produce",
             json = {
                 "topic": topic_name,
@@ -149,7 +149,8 @@ def produce():
                 "partition_index": partition_index,
                 "log_index": log_index
             }
-        ).raise_for_status()
+        )
+        response.raise_for_status()
         data_manager.incr_partition_size(topic_name, partition_index)
         
         return make_response( 

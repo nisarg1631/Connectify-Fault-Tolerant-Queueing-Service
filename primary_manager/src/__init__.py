@@ -1,5 +1,4 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from redis.cluster import ClusterNode
 from time import sleep
 import requests
@@ -19,39 +18,27 @@ data_manager = DataManager(startup_nodes)
 def health_check():
     with app.app_context():
         while True:
-            # broker health - 0 means healthy, for every failue
-            # increment by 1, when counter reaches -3, mark broker
-            # as inactive
-            # brokers = data_manager.get_brokers()
-            brokers = [] # TODO: reimplement healthcheck using REDIS structures
-            for broker in brokers:
-                try:
-                    response = requests.get(f"http://{broker}:5000/")
-                    response.raise_for_status()
-
-                    app.logger.info(f"Resetting broker health of {broker}.")
-                    old_health = data_manager.reset_broker_health(broker)
-                    # activate broker if previously inactive
-                    if old_health == -3:
-                        try:
-                            app.logger.info(f"Activating broker {broker}.")
-                            data_manager.activate_broker(broker)
-                        except Exception as e:
-                            app.logger.warning(str(e))
-                
-                except requests.exceptions.RequestException as e:
-                    app.logger.info(f"Decrementing broker health of {broker}.")
-                    old_health = data_manager.decrement_broker_health(broker)
-                    # deactivate broker if failed thrice
-                    if old_health == -2:
-                        try:
-                            app.logger.info(f"Deactivating broker {broker}.")
-                            data_manager.deactivate_broker(broker)
-                        except Exception as e:
-                            app.logger.warning(str(e))
-                            
-            # check every 1 second
+            broker_name = data_manager.get_broker()
+            if broker_name is not None:
+                # make 3 attempts to check health, if all fail, deactivate broker
+                # first time keep a backoff of 1 second, second time 2 seconds
+                for attempt in range(1, 4):
+                    try:
+                        response = requests.get(f"http://{broker_name}:5000/")
+                        response.raise_for_status()
+                        if not data_manager.broker_is_active(broker_name):
+                            app.logger.info(f"Activating broker {broker_name}.")
+                            data_manager.activate_broker(broker_name)
+                        break
+                    except requests.exceptions.RequestException as e:
+                        if attempt == 3:
+                            if data_manager.broker_is_active(broker_name):
+                                app.logger.info(f"Deactivating broker {broker_name}.")
+                                data_manager.deactivate_broker(broker_name)
+                            break
+                        sleep(attempt)
             sleep(1)
+            
 
 from src import views
 

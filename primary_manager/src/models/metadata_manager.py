@@ -19,14 +19,19 @@ class MetadataManager:
     def add_broker(self, broker_name):
         if self.rc.hsetnx(name=f"broker:{broker_name}", key="partition_count", value=0):
             self.rc.zadd(name="active_brokers", mapping={broker_name: 0})
+            self.rc.rpush("broker_queue", broker_name)
             return True
         return False
     
     def remove_broker(self, broker_name):
         if self.rc.delete(f"broker:{broker_name}") == 1:
             self.rc.zrem("active_brokers", broker_name)
+            self.rc.lrem("broker_queue", 0, broker_name)
             return True
         return False
+    
+    def get_broker(self):
+        return self.rc.lmove(first_list="broker_queue", second_list="broker_queue")
     
     def check_broker_exists(self, broker_name):
         return self.rc.exists(f"broker:{broker_name}") == 1
@@ -56,6 +61,7 @@ class MetadataManager:
         self.rc.hset(name=f"consumer:{consumer_id}", key="topic", value=topic_name)
         num_partitions = self.get_partition_count(topic_name)
         self.rc.hset(name=f"consumer:{consumer_id}:offset", mapping={partition_index: 0 for partition_index in range(num_partitions)})
+        self.rc.rpush(f"consumer:{consumer_id}:partition_queue", *range(num_partitions))
     
     def check_consumer_registered(self, consumer_id, topic_name):
         return self.rc.hget(name=f"consumer:{consumer_id}", key="topic") == topic_name
@@ -108,14 +114,6 @@ class MetadataManager:
 
     def get_partition_size(self, topic_name, partition_index):
         return int(self.rc.hget(name=f"topic:{topic_name}:size_post", key=partition_index))
-    
-    def get_consumer_offset(self, consumer_id, topic_name, partition_index):
-        size = self.get_partition_size(topic_name, partition_index)
-        # run a redis lua script which increments the offset if it is less than the size
-        # and returns the old offset, if the offset is greater than or equal to the size
-        # return the size without incrementing the offset
-        offset = int(self._conditional_atomic_increment(keys=[f"consumer:{consumer_id}:offset"], args=[partition_index, size]))
-        return offset if offset < size else None
 
     def drop_all(self):
         self.rc.flushall()

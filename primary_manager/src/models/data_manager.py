@@ -16,6 +16,10 @@ class DataManager:
 
     def __init__(self, startup_nodes):
         self.metadata_manager = MetadataManager(startup_nodes)
+    
+    def get_broker(self) -> str:
+        """Return a broker name from queue for health check. Round Robin."""
+        return self.metadata_manager.get_broker()
 
     def broker_is_active(self, broker_name) -> bool:
         """Return whether the broker is active."""
@@ -88,15 +92,15 @@ class DataManager:
     def activate_broker(self, broker_host) -> None: 
         if not self.metadata_manager.check_broker_exists(broker_host):
             raise Exception("Broker with hostname does not exist.")
-        if self.metadata_manager.is_broker_active(broker_host):
-            raise Exception("Broker with hostname already active.")
+        # if self.metadata_manager.is_broker_active(broker_host):
+        #     raise Exception("Broker with hostname already active.")
         self.metadata_manager.activate_broker(broker_host)
 
     def deactivate_broker(self, broker_host) -> None: 
         if not self.metadata_manager.check_broker_exists(broker_host):
             raise Exception("Broker with hostname does not exist.")
-        if not self.metadata_manager.is_broker_active(broker_host):
-            raise Exception("Broker with hostname already inactive.")
+        # if not self.metadata_manager.is_broker_active(broker_host):
+        #     raise Exception("Broker with hostname already inactive.")
         self.metadata_manager.deactivate_broker(broker_host)
 
     def drop_all_metadata(self) -> None:
