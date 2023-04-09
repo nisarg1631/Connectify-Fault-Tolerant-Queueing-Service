@@ -9,10 +9,10 @@ print(response.text)
 
 # Test create topic
 
-topic_name = "test_topic_n"
-topic_name2 = "test_topic_n_2"
-topic_name3 = "test_topic_n_3"
-topic_name4 = "test_topic_n_4"
+topic_name = "test_topic_b"
+topic_name2 = "test_topic_b_2"
+topic_name3 = "test_topic_b_3"
+topic_name4 = "test_topic_b_4"
 
 # Test create topic
 
@@ -93,8 +93,8 @@ print(response.text)
 assert response.status_code == 200
 assert response.json()["status"] == "success"
 
-import time
-time.sleep(2)
+# import time
+# time.sleep(2)
 
 # Test produce message
 response = requests.post(

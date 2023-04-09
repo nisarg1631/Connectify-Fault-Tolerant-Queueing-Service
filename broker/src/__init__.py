@@ -10,7 +10,7 @@ import os
 import logging
 
 app = Flask(__name__)
-app.config.from_object(config.DevConfig)
+app.config.from_object(config.ProdConfig)
 db = SQLAlchemy(app)
 new_topics_queue = Queue(500)
 

@@ -21,12 +21,13 @@ class MasterQueue:
 
     def init_from_db(self) -> None:
         topics = TopicDB.query.all()
+        db.session.query(LogDB).delete()
+        db.session.commit()
         for topic in topics:
             brokers = [self.make_raft_addr(obj.broker,obj.port) for obj in BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).all()]
             port = BrokerDB.query.filter_by(name=topic.name, partition_index = topic.partition_index).first().port
             self.topics[(topic.name, topic.partition_index)] = Topic(topic.name,topic.partition_index, brokers, self.make_raft_addr(self._my_broker,port))
-
-
+        
 
     def add_topic(self, topic_name: str, partition_index:int, other_brokers:List[str], port:str) -> None:
         """Add a partition to the database."""
@@ -54,10 +55,6 @@ class MasterQueue:
     def add_log(self, log_index: int, topic_name: str, partition_index:int, producer_id: str, message: str):
         """Add a log to the partition."""
         timestamp = time.time()
-        # TODO: ADD TIMEOUT AND DO TRY CATCH
-        # if self.topics[(topic_name,partition_index)].getStatus()["leader"] == None :
-        #     raise Exception(f"Cluster Not Available.")
-        # logging.warn(self.topics[(topic_name,partition_index)].getStatus())
         try:
             self.topics[(topic_name,partition_index)].add_log(log_index,producer_id,message,timestamp)
         except Exception as e:

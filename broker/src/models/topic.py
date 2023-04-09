@@ -14,7 +14,8 @@ class Topic(SyncObj):
         super(Topic,self).__init__(selfNode = my_broker,
                                    otherNodes = other_brokers,
                                    conf = SyncObjConf(
-                                    journalFile=f"journal/ptn-{name}-{partition_index}.journal")
+                                    journalFile=f"journal/ptn-{name}-{partition_index}.journal",
+                                    appendEntriesUseBatch=False)
                                   )
         self._name : str = name
         self._partition_index : int = partition_index
@@ -23,7 +24,7 @@ class Topic(SyncObj):
 
     @replicated_sync(timeout=10)
     def add_log(self, log_index: int, producer_id: str, message: str, timestamp:float) -> None:
-        with app.app_context(): #TODO RUN ENGINE
+        with app.app_context(): 
             db.session.add(
                 LogDB(
                     id=log_index,
@@ -35,6 +36,8 @@ class Topic(SyncObj):
                 )
             )
             db.session.commit()
+            
+
 
 
     
