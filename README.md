@@ -8,19 +8,18 @@ In this system, each of the brokers, managers as well as the load balancer will 
 The Docker Compose file (`compose.yaml`) describes the configuration of the containers (services). Here's a description of the various services:
 - `gateway`: This is an nginx service which acts as a reverse proxy / load-balancer for read-managers and write-managers.
     - Only this service is exposed via a port (8080) of the gateway of the network.
-- `primary_manager`: This is the write-manager service.
-    - Single service, unreplicated.
+- `primary_manager`: This is the write-manager service(s).
+    - Several replicas.
+    - Replicated by Docker Compose by specifying number in the compose file itself.
 - `readonly_manager`: This is the read-manager service(s).
     - Several replicas.
     - Replicated by Docker Compose by specifying number in the compose file itself.
 - `broker-[1..n]`: This is the broker service.
     - Several in number.
     - Added by mentioning `service` entries in the compose file (hard-coding). We choose this approach rather than Docker Compose replication as each broker uses a stores partitions in a separate database (having a different service name), so they are not exact replicas of each other.
-- `prime_datadb`: Metadata database.
-    - Single service, unreplicated.
-- `masterdb-[1..n]`: Master database per broker for writes
-    - Several in number. Each corresponding to a broker.
-- `slavedb-[1..n]`: Slave database per broker for reads.
+- `redis-node-[1..n]`: Metadata redis cluster.
+    - Multiple nodes, with replicas.
+- `brokerdb-[1..n]`: Master database per broker for storing logs
     - Several in number. Each corresponding to a broker.
 
 ### Docker Networking
@@ -40,14 +39,14 @@ docker network inspect connectify_internal | grep "Gateway"
 - Let's say the IP address is `172.19.0.1`. Use either our client-side library or `curl` to submit requests to `172.19.0.1:8080`. 
 
 ## Design
-We implement a multi-broker distributed queue system which serves write and read requests from `producers` and `consumers` via a __client side library__. The queue manages `topics`, to which producers and consumers subscribe to. Upon a successful subscription, producers write logs to the queue which the registered consumers can read. All consumers have their own offset which maintains how many logs they have read from a given topic. In order to make our distributed queue scalable, each topic is broken into various`partitions`. These partitions are distributed accross various containers called `brokers`, each broker can have zero to many partitions of a given topic. The implementation of our design is discussed further in the following sections.
+We implement a multi-broker distributed queue system which serves write and read requests from `producers` and `consumers` via a __client side library__. The queue manages `topics`, to which producers and consumers subscribe to. Upon a successful subscription, producers write logs to the queue which the registered consumers can read. All consumers have their own offset which maintains how many logs they have read from a given topic. In order to make our distributed queue scalable, each topic is broken into various `partitions`. Further for  high availability and fault tolerance each `partition` is replicated on multiple (in our case 3) `brokers`. The implementation of our design is discussed further in the following sections.
 
 ### Project Structure
 The project consists of various components that interact with each other to serve a request initiated via the client side library. They are listed as follows : 
 
 ##### Write Manager/ Primary Manager 
-- __Function__ : The primary manager handles all requests involving __adding new or additional data__ to the queue. It also keeps track of the metadata required to validate such requests. Redirection of requests to the appropriate broker depending on the partition number of the topic (or in a *round robin fashion*) is also performed here.  Whenever required, it __relays__ appropriate information to the read-only managers. It ensures the consistency of the metadata in times of failure through __Write Ahead Logging__. It also implements a __health check protocol__ to maintain the validity of brokers as well as clients. Any functions involving adding or removing of brokers are also performed via the primary manager. 
-- **Associated Databases :** It updates and reads from the  Primary Database for keeping track of and updating the the metadata of the queue.
+- __Function__ : The primary manager handles all requests involving __adding new or additional data__ to the queue. Redirection of requests to the appropriate broker depending on the partition number of the topic (or in a *round robin fashion*) is also performed here. It implements a __health check protocol__ to maintain the validity of brokers as well as clients. Any functions involving adding or removing of brokers are also performed via the primary manager. 
+- **Associated Databases :** It updates and reads from the Redis Cluster for keeping track of and updating the the metadata of the queue.
 - **Requests Handled :** 
     - `POST` on `/topics`
     - `POST` on `/producer/register`
@@ -55,41 +54,33 @@ The project consists of various components that interact with each other to serv
     - `POST` on `/producer/produce`
 - **Code Structure :**
     - __src__ - the directory containing the primary application with the in-memory datastructures, models and API support
-    - __datastructures__ - implementations for the various thread-safe datastructures used in the primary manager.
-    - __models__ - implementations for various concepts of the queue such as  `Topic`, and `Data_Manager` abstracted using classes.
+    - __models__ - implementations of `Data_Manager` and `Metadata_Manager` abstracted using classes. The `Data_Manager` contains the business logic for handling requests such as checking the validity of a request, adding a new topic, registering a producer, registering a consumer, round robin allocation of produce requests, etc. The `Metadata_Manager` is purely transactional and provides an interface for interacting with the Redis Cluster.
     - __views.py__ - the file containing the HTTP API endpoints for interacting with the primary manager.
     - __json_validator.py__ - the file containing the validator for validating the request JSON body based on the provided schema
-    - __db_models__ - the directory containing the database models for programmatically interacting with the database using `SQLAlchemy`
 
 ##### Read-Ony Managers 
-- **Function** : The read-only managers serve requests concerned with __reading data__ from the queue. They also locally maintain any metadata required to validate such requests such as validating consumer ids. The integrity of this metadata is maintained via communication with the primary manager.
-- **Associated Databases :** It reads from the Primary Database only upon startup, and never further interacts with it.
+- **Function** : The read-only managers serve requests concerned with __reading data__ from the queue. Primatily it 
+- **Associated Databases :** It updates and reads from the Redis Cluster for keeping track of and updating the the metadata of the queue.
 - **Requests Handled :**
     - `GET` on `/topics`
     - `GET` on `/consumer/consume`
     - `GET` on `/size`
-    - `POST` on `/sync/topics`
-    - `POST` on `/sync/consumer/register`
 - **Code Structure :**
     - __src__ - the directory containing the primary application with the in-memory datastructures, models and API support
-    - __datastructures__ - implementations for the various thread-safe datastructures used in the read-only manager.
-    - __models__ - implementations for various concepts of the queue such as  `Topic`,  `Readonly_Manager` and `Broker` abstracted using classes.
+    - __models__ - implementations of `Readonly_Manager` and `Metadata_Manager` abstracted using classes. The `Readonly_Manager` contains the business logic for handling requests such as checking the validity of a request, round robin allocation of consume requests, etc. The `Metadata_Manager` is purely transactional and provides an interface for interacting with the Redis Cluster.
     - __views.py__ - the file containing the HTTP API endpoints for interacting with the read-only manager.
     - __json_validator.py__ - the file containing the validator for validating the request JSON body based on the provided schema
-    - __db_models__ - the directory containing the database models for programmatically interacting with the database using `SQLAlchemy`
 
 ##### Brokers :
 - **Function:** The brokers serve as the entity which interact with the queue data for writes as well as reads. Each broker handles zero to many partitions of a topic and any read/write request made to any of its partitions is forwarded to the broker after validity checks are performed at a higher level. The broker then simply performs the update or returns the data requested from it. 
-- **Associated Databases :** Each broker has its corresponding Master Database which handles all the queue data of the various partitions present in it, along with some broker specific metadata such as offsets of various consumers for read requests. It does not handle requests concerning metadata updates or reads such as registering a producer or `GET`ting the list of topics.
+- **Associated Databases :** Each broker has its corresponding Broker Database which handles all the queue data of the various partitions present in it. It does not handle requests concerning metadata updates or reads such as registering a producer or `GET`ting the list of topics.
 - **Requests Handled :**
     - `GET` on `/consumer/consume`
-    - `GET` on `/size`
     - `POST` on `/topics`
     - `POST` on `/producer/produce`
 - **Code Structure :**
     - __src__ - the directory containing the primary application with the in-memory datastructures, models and API support
-    - __datastructures__ - implementations for the various thread-safe datastructures used in the broker.
-    - __models__ - implementations for various concepts of the queue such as  `Topic`,  `Master_Queue` and `Log` abstracted using classes.
+    - __models__ - implementations for various concepts of the queue such as  `Topic` and `Master_Queue`
     - __views.py__ - the file containing the HTTP API endpoints for interacting with the broker.
     - __json_validator.py__ - the file containing the validator for validating the request JSON body based on the provided schema
     - __db_models__ - the directory containing the database models for programmatically interacting with the database using `SQLAlchemy`
@@ -101,47 +92,50 @@ We use `nginx` as a top level load balancer and a reverse proxy. All requests ar
 - Redirection of appropriate requests to one of the multiple read-only managers in a round robin manner. 
 - Act as a reverse proxy for the read only managers. Since the read-only managers are created as replicas in the docker network, their IP Addresses are dynamically created everytime they are instantiated and are not visible to us. To be able to redirect requests to these dynamically generated IP-Addresses, nginx provides a reverse proxy from the server name of the read only managers (which is fixed at every instantiation) to their IPs. 
 
-##### Master Slave Architecture
+### RAFT Consensus
 
-In our previous design we were maintaining the logs in memory to serve the read requests. However, this approach is not scalable. So instead we shifted to a master-slave architecture. Here, each broker has access to a write database (the MASTER) and multiple read databases (the SLAVES). All read requests are served from the read database. In order to do this we have used Postgres WAL Replication whereby WAL records are streamed to slaves and sync is maintained. Through this we ensure high data availability as well as lesser load on the write database.
+We use the Python library `pysncobj` to achieve consistency among the replicated partitions managed by the different brokers through the RAFT protocol.
 
+#### Replication of Produce Log
+
+Our `Topic` class (which represents a partition) inherits from the `SyncObj` class, meaning each partition is a RAFT instance. Now any member method of this class can be synchronised among the brokers in order to achieve consensus by adding the decorator `@replicated_sync`. We only need to make the `add_log` (produce) method replicated, as this is the only write operation that the brokers handle.
+
+#### Creation of a Partition
+
+When a request to the `/topic` endpoint of the broker is made (in order to create a partition), the request data is passed into a FIFO queue for processing in a different thread. In this thread, the FIFO queue is constantly polled and when it is not empty, the request data is fetched and the instantation (creation) of a `Topic` object (and thereby `SyncObj` objects) representing a partition happens.
+
+> This had to be done as we use Flask in threaded mode to serve our requests, meaning each POST request on the `/topic` (add topic) endpoint of the broker leads to the creation of new thread. Also, `SyncObj` upon instantiation spawns a new thread on each broker for calling several operations periodically as and when required like leader election, heartbeats, etc. If we were to instantiate our `Topic` objects in this short lived request thread then RAFT consensus through `pysyncobj` would fail as as the thread instantiated by `SyncObj` would be killed as soon as the request thread is killed after the request is served.
 
 ### Database Schemas
 
 The various databases used and their schemas are discussed as follows. 
 
-##### Primary Database
-This database is used to store all the __metadata__ associated with our distributed and partitioned queue. It does not store any actual data contained in the queue. The database schema is as follows: 
+##### Redis Cluster
+This redis cluster is used to store all the __metadata__ associated with our distributed and partitioned queue. It does not store any actual data contained in the queue. The cluster schema is as follows: 
 
-###### Table `topic` - contains the names and partition indices of the topics present in this portion of the queue. 
-- `name` - the primary key of the table, also the name of the topic. 
-- `partitions` - the number of partitions of the topic.
+1. Hash `broker:{broker_name}` - stores the partition count of the broker with the given name
 
-###### Table `partitions` - contains the producer ids and the topics they have subscribed to
-- `ind` - the index of this partition, along with `topic_name` is a unique identifier to a partition of a topic.
-- `topic_name` - the name of the topic ,  along with `ind` is a unique identifier to a partition of a topic.
-- `broker_host` - the service name of the broker this partition is present in.
+2. List `broker_queue` - stores the names of the brokers, used as a round robin queue for health check
 
-###### Table `producers` - contains the producer ids and the topics they have subscribed to
-- `id` - the primary key of the table, id of the producer
-- `topic_name` - the name of the topic the producer has subscribed to
+3. Set `active_brokers` - stores the names of the active brokers mapped to the partition count of the broker, used to quickly get 3 active brokers with the least number of partitions to allocate a new partition to
 
-###### Table `consumers` - contains the consumer ids and the topics they have subscribed to
-- `id` - the primary key of the table, id of the consumer
-- `topic_name` - the name of the topic the consumer has subscribed to
+4. Hash `consumer:{consumer_id}` - stores the topic name of the consumer with the given id
 
-###### Table `brokers` - contains the broker service names and their availability status
-- `name` - the primary key of the table, service name of the broker
-- `status` - stores whether the broker is alive or not
+5. Hash `consumer:{consumer_id}:offset` - store the mapping of the partition number to the offset of the consumer with the given id
 
-###### Table `request_logs` - contains the logs of the requests to inactive brokers, to be replayed later
-- `id` - the primary key of the table, unique identifier of the log
-- `broker_name` - the name of the broker to which the request was made
-- `endpoint` - the endpoint of the request
-- `json_data` - the JSON body of the request
+6. List `consumer:{consumer_id}:partition_queue` - stores the partition numbers of the partitions the consumer with the given id has subscribed to, used as a round robin queue for consume requests
 
+7. Hash `topic:{topic_name}` - stores the partition count of the topic with the given name
 
-##### Master Database(s)
+8. List `topic:{topic_name}:partition_queue` - stores the partition numbers of the partitions the topic with the given name has, used as a round robin queue for produce requests
+
+9. Hash `topic:{topic_name}:{partition_index}:broker` - stores the mapping of replica number to the broker name of the partition with the given index of the topic with the given name
+
+10. Hash `topic:{topic_name}:size` - stores the mapping of partition number to the size of the partition of the topic with the given name
+
+11. Hash `producer:{producer_id}` - stores the topic name of the producer with the given id
+
+##### Broker Database(s) - TODO: add RAFT related changes here
 These databases store the __actual queue data__ and the associated metadata required for the handling of this data. It does not store unnecessary queue metadata. Each master database has an associated broker. The database schema is as follows: 
 
 ###### Table `topic` - contains the names and partition indices of the topics present in this portion of the queue.
@@ -258,27 +252,10 @@ These endpoints are for the calls made via our client side library.
     - Update the primary database
     - Relay information to readonly managers for sync
 
-##### Synchronisation Endpoints
-
-These endpoints serve the purpose of synchronisation between the primary manager and the read only manager. These requests are sent from the former to the latter.
-
-- __POST on /sync/topics__ : On a succeddful topic creation request, the primary manager sends the newly added topic to the read-only managers which update this information in their local memory.
-
-- __POST on /sync/consumer/register__ : On a succeddful consumer register request, the primary manager sends the newly registered consumer id and topic to the read-only managers which update this information in their local memory.
-
-- __POST on /sync/broker/add__ : On a successful broker addition, reflect in readonly managers's broker dicts
-
-- __POST on /sync/broker/remove__ : On a successful broker removal reflect in readonly managers's broker dicts
-
-- __POST on /sync/broker/activate__ : On a successful broker activation reflect in readonly managers's broker dicts
-
-- __POST on /sync/broker/deactivate__ : On a successful broker deactivation reflect in readonly managers's broker dicts
-
-
 
 ### Healthcheck Service
 
-We run a separate thread in the `primary_manager` which on a timely interval polls the registered brokers with a __GET on /__ (the root endpoint). We maintain a counter which counts down on each failure to connect with the broker. When the broker is unreachable even after 3 retries it is marked as deactivated. It no longer is used for assigning partitions to new topics. Produce and consume requests to it return failure. If a consumer does register to a topic which has partitions on a broker which is inactive then the requests to register that consumer to the inactive broker are queued. When the broker becomes active back again the queue is replayed and a consistent state is reached.
+We run a separate thread in the `primary_manager` which on a timely interval polls the registered brokers with a __GET on /__ (the root endpoint). We maintain a counter which counts down on each failure to connect with the broker. When the broker is unreachable even after 3 retries it is marked as deactivated. It no longer is used for assigning partitions to new topics. Produce and consume requests to it return failure.
 
 
 ### Client Side Library
@@ -287,22 +264,8 @@ See [client side library README](./connectify_client/README.md).
 
 ## Optimisations 
 
-### Async Requests
-We use the async requests module which we used in our client library to make simultaneous async queries from the write manager to the read managers. There are two advanatages of doing this:
-1. It takes less time than updating the read managers sequentially.
-2. The read managers get updated at more or less the same time with little disparity between their states.
-
 ### Distributed Metadata
-Having all the metadata related to producers, consumers and topics stored in a single database would lead to a single point of failure. Instead our design ensures high availability of data even in case of temporary database failures. To do this we made the following design decisions:
-1. Each read manager has an in-memory copy of the relavant metadata. On any updates, the write manager sends requests to the read managers which then update their metadata. A downside of this approach is that if there is any failure in updating any read manager for whatever reason, the system is left in an inconsistent state.
-2. As we are not keeping a central metadata database some data which would require synchronisation between the read managers, like the consumer offsets are stored instead at the broker level. So that we don't have to worry about keeping them in sync at the read manager level.
-
-### Master-Slave
-We have a master database and one or more slave databases for each broker. All writes are done to the master database and the slave databases are updated asynchronously. Overall this design has the following advantages:
-1. The master database is always up to date and is not overloaded with read requests.
-2. The slave databases are updated asynchronously and are not overloaded with write requests.
-3. The slave databases are updated in the background and are not affected by any temporary failures in the master database ensuring high availability of data.
-
+Having all the metadata related to producers, consumers and topics stored in a single database would lead to a single point of failure. Instead our design ensures high availability of data even in case of temporary database failures. To do this we use a Redis cluster with 6 nodes. Data is split into 3 groups with each group having 2 replicated nodes. Hence even if one of the nodes of a group fails, the data is still available in the other node of the group. We use the `redis-py` library to interact with the Redis cluster. Appendonly persistence is enabled in the Redis cluster. This ensures that even if the cluster is restarted, the data is not lost.
 
 ## Testing
 
