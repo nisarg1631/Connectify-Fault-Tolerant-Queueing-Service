@@ -160,9 +160,6 @@ These databases store the __actual queue data__ and the associated metadata requ
 
 The overall structure of our design looks as follows : 
 
-<a href="https://ibb.co/4R4WH18"><img src="https://i.ibb.co/PG1xdDc/overall.png" alt="overall" border="0"></a>
-
-
 ##### Client Side Endpoints
 
 These endpoints are for the calls made via our client side library.
@@ -171,15 +168,11 @@ These endpoints are for the calls made via our client side library.
     - Contact a read-only manager via round robin
     - The read-only manager returns the list of topics from local memory
 
-<a href="https://ibb.co/X3fGz5H"><img src="https://i.ibb.co/MGyJR1d/topics-`GET`.png" alt="topics-`GET`" border="0"></a>
-
 - __POST on /topics__ : A new topic is created
     - Contact the primary manager
     - Primary manager performs the necessary checks, returns any error found.
     - The primary database is updated with this new data
     - Information of the new topic is sent to all read-only managers 
-
-<a href="https://ibb.co/q1WTrQf"><img src="https://i.ibb.co/w6w5zmX/topics-`POST`.png" alt="topics-`POST`" border="0"></a>
 
 - __POST on /producer/register__:  Producer registers to a topic
     - Contact the primary manager
@@ -187,15 +180,11 @@ These endpoints are for the calls made via our client side library.
     - If the topic does not exist, primary manager sends a create topic request to itself
     - The primary database is updated.
 
-<a href="https://ibb.co/HPx7qS6"><img src="https://i.ibb.co/B6rLBpb/producer-register.png" alt="producer-register" border="0"></a>
-
 - __POST on /consumer/register__:  Consumer registers to a topic
     - Contact the primary manager
     - Primary manager performs the necessary checks, returns any error found.
     - The primary database is updated
     - Information of the newly registered consumer is forwarded to all read-only manager
-
-<a href="https://ibb.co/KmDYr8M"><img src="https://i.ibb.co/g6dGRc5/register-consumer.png" alt="register-consumer" border="0"></a>
 
 - __POST on /producer/produce__: Producer produces a log to a topic
     - Contact the primary manager
@@ -203,9 +192,7 @@ These endpoints are for the calls made via our client side library.
     - If the partition index is not provided, primary manager chooses one in a   round robin fashion
     - The primary manager chooses the appropriate broker having the desired partition and forwards the request to it
     - Updates are made to the master database via the broker.
-
-<a href="https://ibb.co/SXZc91b"><img src="https://i.ibb.co/RpJNVMf/producer-produce.png" alt="producer-produce" border="0"></a>
-
+z
 - __GET on /consumer/consume__:  Consumer reads a log from a topic
     - One of the read-only managers is contacted in a round robin fashion.
     - Read-only manager performs the necessary checks, returns any error found.
@@ -215,8 +202,6 @@ These endpoints are for the calls made via our client side library.
 
     __Additional functionality__  : If a parition index is not provided, we have to choose one ourselves, however it is possible that the next partition in the round-robin does not have any logs to consume, but some other partition of the topic does have remaining logs. Hence, if a partition is chosen via round robin, the read-only manager constantly contacts partitions in brokers in a round robin fashion till it finds a partition which has some logs to consume. It then returns a log from this partition. If all logs in that topic have been consumed, an appropriate message is returned.
 
-<a href="https://ibb.co/qCwkyyC"><img src="https://i.ibb.co/ScpRssc/consumer-consume.png" alt="consumer-consume" border="0"></a>
-    
 - __GET on /size__ when partition index is provided : Returns the number of log messages left to consume on a given partition index of a topic
     - One of the read-only managers is contacted in a round robin fashion.
     - It contacts the appropriate broker having the desired partition.
@@ -227,8 +212,6 @@ These endpoints are for the calls made via our client side library.
     - It contacts all the  brokers having some partition of the desired topic.
     - Each broker returns a dictionary of {partition_index : size}.
     - The read-only manager aggregates the responses of all the brokers and returns a list.
-
-<a href="https://ibb.co/F59dyDr"><img src="https://i.ibb.co/LxMscZF/size.png" alt="size" border="0"></a>
 
 ##### Administrative Endpoints
 
